@@ -6,8 +6,8 @@ My own Django project skeleton with Django Rest framework ready for Docker.
 
 ```
 docker-compose up -d
-docker-compose run restapi python manage.py migrate
-docker-compose run restapi python manage.py createsuperuser
+docker-compose run backend python manage.py migrate
+docker-compose run backend python manage.py createsuperuser
 ```
 
 Then, django rest framwork will be available at `docker-machine ip [your machine]` on port 8000. 
@@ -15,7 +15,7 @@ Then, django rest framwork will be available at `docker-machine ip [your machine
 To create new app:
 
 ```
-docker-compose run restapi python manage.py startapp my-app project/apps/my-app
+docker-compose run backend python manage.py startapp my-app project/apps/my-app
 ```
 
 # Production
@@ -23,7 +23,7 @@ docker-compose run restapi python manage.py startapp my-app project/apps/my-app
 Depending on what you use:
 
 ```
-docker build ./restapi your-app
+docker build ./backend your-app
 docker tag your-app tag
 docker push your-username/your-app:tag
 ```

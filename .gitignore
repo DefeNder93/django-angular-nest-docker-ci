@@ -18,3 +18,5 @@ build
 # Celerybeat scheduler file:
 celerybeat-schedule
 ENV
+
+/.idea

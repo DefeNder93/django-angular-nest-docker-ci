@@ -5,11 +5,11 @@ database:
         - pgdata:/var/lib/postgresql/data/
     environment:
         POSTGRES_USER: django
-restapi:
-    build: ./restapi
+backend:
+    build: ./backend
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-        - ./restapi:/django
+        - ./backend:/django
     ports:
         - "8000:8000"
     links:
