@@ -5,7 +5,7 @@ My own Django project skeleton with Django Rest framework ready for Docker.
 # Quickstart in Development
 
 ```
-docker-compose up -d
+docker-compose up -d --build
 docker-compose run backend python manage.py migrate
 docker-compose run backend python manage.py createsuperuser
 ```
