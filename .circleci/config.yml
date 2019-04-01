@@ -1,41 +1,90 @@
 version: 2
 jobs:
-  build:
-    working_directory: ~/circleci-demo-python-django/backend
-    docker:
-      - image: circleci/python:3.6.4
-        environment:
-          PIPENV_VENV_IN_PROJECT: true
-          DATABASE_NAME: circle_test
-          DATABASE_USER: root
-          DATABASE_PASSWORD: root
-          DATABASE_SERVICE_HOST: localhost
-      - image: circleci/postgres:9.6.2
-        environment:
-          POSTGRES_USER: root
-          POSTGRES_DB: circle_test
-    steps:
-      - checkout
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.6/site-packages
-      - restore_cache:
-          key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
-      - run:
-          command: |
-            sudo pip install -r backend/requirements.txt
-      - save_cache:
-          key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
-          paths:
-            - ".venv"
-            - "/usr/local/bin"
-            - "/usr/local/lib/python3.6/site-packages"
-      - run:
-          command: python ./backend/manage.py test
-      - store_test_results:
-          path: test-results
-      - store_artifacts:
-          path: test-results
-          destination: tr1
+    build:
+        working_directory: ~/circleci-demo-python-django/backend
+        docker:
+          - image: circleci/python:3.6.4
+            environment:
+              PIPENV_VENV_IN_PROJECT: true
+              DATABASE_NAME: circle_test
+              DATABASE_USER: root
+              DATABASE_PASSWORD: root
+              DATABASE_SERVICE_HOST: localhost
+          - image: circleci/postgres:9.6.2
+            environment:
+              POSTGRES_USER: root
+              POSTGRES_DB: circle_test
+        steps:
+          - checkout
+          - run: sudo chown -R circleci:circleci /usr/local/bin
+          - run: sudo chown -R circleci:circleci /usr/local/lib/python3.6/site-packages
+          - restore_cache:
+              key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
+          - run:
+              command: sudo pip install -r backend/requirements.txt
+          - save_cache:
+              key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
+              paths:
+                - ".venv"
+                - "/usr/local/bin"
+                - "/usr/local/lib/python3.6/site-packages"
+          - save_cache:
+              key: v1-code-{{ .Revision }}
+              paths:
+                - backend
+                - docker
+          - run:
+              command: python ./backend/manage.py test
+          - store_test_results:
+              path: test-results
+          - store_artifacts:
+              path: test-results
+              destination: tr1
+
+    prepare:
+            docker:
+                - image: circleci/python:3.6.4
+            steps:
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Create required dirs on Digital Ocean (if they not exist)
+                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p crypto-api"
+
+    deploy:
+            docker:
+                - image: circleci/python:3.6.4
+            steps:
+                # Restores cache from the build job which contains the
+                # dist folder that needs to be deployed and docker setup
+                - restore_cache:
+                    key: v1-code-{{ .Revision }}
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Deploy to Digital Ocean
+                    command: |
+                        scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
+                        scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
+
+#    run:
+#            docker:
+#                - image: circleci/python:3.6.4
+#            steps:
+#                - run:
+#                    name: Add Digital Ocean droplet host to the known hosts file
+#                    command: |
+#                        mkdir -p ~/.ssh;
+#                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+#                - run:
+#                    name: Run Nginx Using Docker
+#                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home/crypto && docker-compose down -v && docker-compose up -d --build"
 
 workflows:
     version: 2
@@ -46,3 +95,35 @@ workflows:
                     branches:
                         only:
                             - feature/django-setup
+
+workflows:
+    version: 2
+    build_deploy_and_run:
+        jobs:
+            - build:
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - prepare:
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - deploy:
+                requires:
+                    - build
+                    - prepare
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+#            - run:
+#                requires:
+#                    - build
+#                    - prepare
+#                    - deploy
+#                filters:
+#                    branches:
+#                        only:
+#                            - feature/django-setup
