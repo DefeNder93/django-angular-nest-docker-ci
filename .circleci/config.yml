@@ -86,15 +86,6 @@ jobs:
 #                    name: Run Nginx Using Docker
 #                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home/crypto && docker-compose down -v && docker-compose up -d --build"
 
-workflows:
-    version: 2
-    build_deploy_and_run:
-        jobs:
-            - build:
-                filters:
-                    branches:
-                        only:
-                            - feature/django-setup
 
 workflows:
     version: 2
