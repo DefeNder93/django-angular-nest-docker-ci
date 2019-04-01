@@ -22,7 +22,7 @@ jobs:
           key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
       - run:
           command: |
-            pip install -r backend/requirements.txt
+            sudo pip install -r backend/requirements.txt
       - save_cache:
           key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
           paths:
