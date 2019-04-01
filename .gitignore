@@ -4,6 +4,7 @@ __pycache__
 
 # Packaging files:
 *.egg*
+backend/venv
 
 # Editor temp files:
 *.swp
@@ -20,3 +21,4 @@ celerybeat-schedule
 ENV
 
 /.idea
+backend/.idea
