@@ -60,8 +60,9 @@ jobs:
             steps:
                 # Restores cache from the build job which contains the
                 # dist folder that needs to be deployed and docker setup
-                - restore_cache:
-                    key: v1-code-{{ .Revision }}
+#                - restore_cache:
+#                    key: v1-code-{{ .Revision }}
+                - checkout
                 - run:
                     name: Add Digital Ocean droplet host to the known hosts file
                     command: |
@@ -70,9 +71,9 @@ jobs:
                 - run:
                     name: Deploy to Digital Ocean
                     command: |
+                        scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
                         scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
 
-# scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
 #    run:
 #            docker:
 #                - image: circleci/python:3.6.4
