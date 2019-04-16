@@ -70,9 +70,9 @@ jobs:
                 - run:
                     name: Deploy to Digital Ocean
                     command: |
-                        scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
                         scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
 
+# scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
 #    run:
 #            docker:
 #                - image: circleci/python:3.6.4
