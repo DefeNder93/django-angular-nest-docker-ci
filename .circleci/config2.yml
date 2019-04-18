@@ -1,0 +1,137 @@
+version: 2
+jobs:
+    # The build job
+    build:
+        # working_directory: ~/project
+        docker:
+            - image: circleci/node:9.11.2
+        steps:
+            # Checkout the code from the branch into the working_directory
+            - checkout
+            # Log the current branch
+            - run:
+                name: Show current branch
+                command: echo {{ .Branch }}
+            # Restore local dependencies from cache
+            - restore_cache:
+                keys:
+                - v2-dependencies-{{ checksum "package.json" }}
+                - v2-dependencies-
+            # Install project dependencies
+            - run:
+                name: Install local dependencies
+                command: npm install
+            # Cache local dependencies if they don't exist
+            - save_cache:
+                key: v2-dependencies-{{ checksum "package.json" }}
+                paths:
+                    - node_modules
+            # Lint the source code
+#            - run:
+#                name: Linting
+#                command: npm run lint
+            # Test the source code
+#            - run:
+#                name: Testing
+#                command: npm run test
+            # Build project with different configuration based on
+            # the current branch
+            - run:
+                name: Building
+                command: npm run build
+#                    if [ "${CIRCLE_BRANCH}" == "staging" ]; then
+#                        npm run build-qa
+#                    elif [ "${CIRCLE_BRANCH}" == "master" ]; then
+#                        npm run build-prod
+#                    else
+#                        npm run build-dev
+#                    fi
+#                    npm run build
+            # Cache the dist folder for the deploy job
+            - save_cache:
+                key: v2-dist-{{ .Revision }}
+                paths:
+                    - dist
+                    - docker
+    prepare:
+            docker:
+                - image: circleci/node:9.11.2
+            steps:
+#                - checkout
+#                - add_ssh_keys:
+#                    fingerprints:
+#                        - "53:a5:f7:a1:09:25:8c:6d:3e:72:11:e4:ed:ba:6e:59"
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Create required dirs on Digital Ocean (if they not exist)
+                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p drweb && cd drweb && mkdir -p dist"
+
+
+
+    deploy:
+            docker:
+                - image: circleci/node:9.11.2
+            steps:
+                # Restores cache from the build job which contains the
+                # dist folder that needs to be deployed and docker setup
+                - restore_cache:
+                    key: v2-dist-{{ .Revision }}
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Deploy to Digital Ocean
+                    command: |
+                        scp -r dist/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/drweb/dist;
+                        scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/drweb;
+
+    run:
+            docker:
+                - image: circleci/node:9.11.2
+            steps:
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Run Nginx Using Docker
+                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home/drweb && docker-compose down -v && docker-compose up -d --build"
+
+workflows:
+    version: 2
+    build_deploy_and_run:
+        jobs:
+            - build:
+                filters:
+                    branches:
+                        only:
+                            - dev
+            - prepare:
+                filters:
+                    branches:
+                        only:
+                            - dev
+            - deploy:
+                requires:
+                    - build
+                filters:
+                    branches:
+                        only:
+                            - dev
+            - run:
+                requires:
+                    - build
+                    - prepare
+                    - deploy
+                filters:
+                    branches:
+                        only:
+                            - dev
+

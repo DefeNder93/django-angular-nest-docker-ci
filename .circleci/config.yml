@@ -61,7 +61,7 @@ jobs:
               ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
         - run:
             name: Create required dirs on Digital Ocean (if they not exist)
-            command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p drweb && cd drweb && mkdir -p dist"
+            command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p django-angular-nest-docker-ci && cd django-angular-nest-docker-ci && mkdir -p dist"
             
     frontend_deploy:
       docker:
@@ -79,8 +79,8 @@ jobs:
         - run:
             name: Deploy to Digital Ocean
             command: |
-              scp -r dist/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/drweb/dist;
-              scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/drweb;     
+              scp -r dist/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci/dist;
+              scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci;     
               
     run:
       docker:
@@ -93,7 +93,7 @@ jobs:
               ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
         - run:
             name: Run Nginx Using Docker
-            command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home/drweb && docker-compose down -v && docker-compose up -d --build"
+            command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home/django-angular-nest-docker-ci && docker-compose down -v && docker-compose up -d --build"
 
     backend_build:
         # working_directory: ~/circleci-demo-python-django/backend
