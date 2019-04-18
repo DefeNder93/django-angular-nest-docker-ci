@@ -1,0 +1,17 @@
+{
+  "extends": "../../tslint.json",
+  "rules": {
+    "directive-selector": [
+      true,
+      "attribute",
+      "django-angular-nest-docker-ci",
+      "camelCase"
+    ],
+    "component-selector": [
+      true,
+      "element",
+      "django-angular-nest-docker-ci",
+      "kebab-case"
+    ]
+  }
+}

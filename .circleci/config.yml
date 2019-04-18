@@ -1,0 +1,224 @@
+version: 2
+jobs:
+
+    frontend_build:
+      # working_directory: ~/project
+      docker:
+        - image: circleci/node:9.11.2
+      steps:
+        # Checkout the code from the branch into the working_directory
+        - checkout
+        # Log the current branch
+        - run:
+            name: Show current branch
+            command: echo {{ .Branch }}
+        # Restore local dependencies from cache
+        - restore_cache:
+            keys:
+              - v2-dependencies-{{ checksum "package.json" }}
+              - v2-dependencies-
+        # Install project dependencies
+        - run:
+            name: Install local dependencies
+            command: npm install
+        # Cache local dependencies if they don't exist
+        - save_cache:
+            key: v2-dependencies-{{ checksum "package.json" }}
+            paths:
+              - node_modules
+        # Lint the source code
+        #            - run:
+        #                name: Linting
+        #                command: npm run lint
+        # Test the source code
+        #            - run:
+        #                name: Testing
+        #                command: npm run test
+        # Build project with different configuration based on
+        # the current branch
+        - run:
+            name: Building
+            command: npm run build
+        # Cache the dist folder for the deploy job
+        - save_cache:
+            key: v2-dist-{{ .Revision }}
+            paths:
+              - dist
+              - docker
+
+    frontend_prepare:
+      docker:
+        - image: circleci/node:9.11.2
+      steps:
+        #                - checkout
+        #                - add_ssh_keys:
+        #                    fingerprints:
+        #                        - "53:a5:f7:a1:09:25:8c:6d:3e:72:11:e4:ed:ba:6e:59"
+        - run:
+            name: Add Digital Ocean droplet host to the known hosts file
+            command: |
+              mkdir -p ~/.ssh;
+              ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+        - run:
+            name: Create required dirs on Digital Ocean (if they not exist)
+            command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p django-angular-nest-docker-ci && cd django-angular-nest-docker-ci && mkdir -p dist"
+            
+    frontend_deploy:
+      docker:
+        - image: circleci/node:9.11.2
+      steps:
+        # Restores cache from the build job which contains the
+        # dist folder that needs to be deployed and docker setup
+        - restore_cache:
+            key: v2-dist-{{ .Revision }}
+        - run:
+            name: Add Digital Ocean droplet host to the known hosts file
+            command: |
+              mkdir -p ~/.ssh;
+              ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+        - run:
+            name: Deploy to Digital Ocean
+            command: |
+              scp -r dist/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci/dist;
+              scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci;     
+              
+    run:
+      docker:
+        - image: circleci/node:9.11.2
+      steps:
+        - run:
+            name: Add Digital Ocean droplet host to the known hosts file
+            command: |
+              mkdir -p ~/.ssh;
+              ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+        - run:
+            name: Run Nginx Using Docker
+            command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home/django-angular-nest-docker-ci && docker-compose down -v && docker-compose up -d --build"
+
+    backend_build:
+        # working_directory: ~/circleci-demo-python-django/backend
+        docker:
+          - image: circleci/python:3.6.4
+            environment:
+              PIPENV_VENV_IN_PROJECT: true
+              DATABASE_NAME: circle_test
+              DATABASE_USER: root
+              DATABASE_PASSWORD: root
+              DATABASE_SERVICE_HOST: localhost
+          - image: circleci/postgres:9.6.2
+            environment:
+              POSTGRES_USER: root
+              POSTGRES_DB: circle_test
+        steps:
+          - checkout
+          - run: sudo chown -R circleci:circleci /usr/local/bin
+          - run: sudo chown -R circleci:circleci /usr/local/lib/python3.6/site-packages
+          - restore_cache:
+              key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
+          - run:
+              command: sudo pip install -r backend/requirements.txt
+          - save_cache:
+              key: deps9-{{ .Branch }}-{{ checksum "backend/requirements.txt" }}
+              paths:
+                - ".venv"
+                - "/usr/local/bin"
+                - "/usr/local/lib/python3.6/site-packages"
+          - save_cache:
+              key: v1-code-{{ .Revision }}
+              paths:
+                - backend
+                - docker
+          - run:
+              command: python ./backend/manage.py test
+          - store_test_results:
+              path: test-results
+          - store_artifacts:
+              path: test-results
+              destination: tr1
+
+    backend_prepare:
+            docker:
+                - image: circleci/python:3.6.4
+            steps:
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Create required dirs on Digital Ocean (if they not exist)
+                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p django-angular-nest-docker-ci && cd django-angular-nest-docker-ci && mkdir -p backend"
+
+    backend_deploy:
+            docker:
+                - image: circleci/python:3.6.4
+            steps:
+                # Restores cache from the build job which contains the
+                # dist folder that needs to be deployed and docker setup
+#                - restore_cache:
+#                    key: v1-code-{{ .Revision }}
+                - checkout
+                - run:
+                    name: Add Digital Ocean droplet host to the known hosts file
+                    command: |
+                        mkdir -p ~/.ssh;
+                        ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
+                - run:
+                    name: Deploy to Digital Ocean
+                    command: |
+                        scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci/backend;
+                        scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci;
+
+
+workflows:
+    version: 2
+    build_deploy_and_run:
+        jobs:
+            - backend_build:
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - backend_prepare:
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - backend_deploy:
+                requires:
+                    - backend_build
+                    - backend_prepare
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+
+            - frontend_build:
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - frontend_prepare:
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - frontend_deploy:
+                requires:
+                    - frontend_build
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
+            - run:
+                requires:
+                    - backend_build
+                    - backend_prepare
+                    - backend_deploy
+                    - frontend_build
+                    - frontend_prepare
+                    - frontend_deploy
+                filters:
+                    branches:
+                        only:
+                            - feature/django-setup
