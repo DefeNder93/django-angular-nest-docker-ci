@@ -147,7 +147,7 @@ jobs:
                         ssh-keyscan ${DEPLOY_HOST} >> ~/.ssh/known_hosts;
                 - run:
                     name: Create required dirs on Digital Ocean (if they not exist)
-                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p crypto-api && cd crypto-api && mkdir -p backend"
+                    command: ssh ${DEPLOY_USERNAME}@${DEPLOY_HOST} "cd /home && mkdir -p django-angular-nest-docker-ci && cd django-angular-nest-docker-ci && mkdir -p backend"
 
     backend_deploy:
             docker:
@@ -166,8 +166,8 @@ jobs:
                 - run:
                     name: Deploy to Digital Ocean
                     command: |
-                        scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api/backend;
-                        scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/crypto-api;
+                        scp -r backend/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci/backend;
+                        scp -r docker/* ${DEPLOY_USERNAME}@${DEPLOY_HOST}:/home/django-angular-nest-docker-ci;
 
 
 workflows:
